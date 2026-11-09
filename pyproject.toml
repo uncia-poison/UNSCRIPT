@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "speech987"
-version = "0.1.0"
-description = "Bilingual LLM speech-cliché auditing and conservative cleanup middleware"
+version = "0.2.0"
+description = "Bilingual model voice autonomy, anti-cliché auditing and conservative middleware"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{name = "uncia-poison"}]
