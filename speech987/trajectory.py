@@ -25,8 +25,12 @@ def _fingerprint(text: str) -> str | None:
     # Only use the first nonempty paragraph; matching is an exact repeated
     # opening, not a speculative psychological interpretation.
     nonempty = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    words = _WORD_RE.findall(nonempty.lower())
-    if len(words) < 3:
+    # Treat the sentence or stage-setting clause before punctuation as an
+    # opening. This detects "Давай разберёмся: [changing topic]" while avoiding
+    # verbatim fingerprinting of entire user-specific text.
+    lead = re.split(r"[.!?:—–]", nonempty, maxsplit=1)[0]
+    words = _WORD_RE.findall(lead.lower())
+    if len(words) < 2:
         return None
     opening = " ".join(words[:min(6, len(words))])
     return hashlib.sha256(opening.encode("utf-8")).hexdigest()[:16]
