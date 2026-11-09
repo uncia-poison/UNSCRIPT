@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 from .core import clean
 from .rewriter import _completion_url, rewrite
 from .voice import VoiceCharter, charter_instruction
+from .transport import open_no_redirect
 
 
 MAX_REQUEST = 1024 * 1024
@@ -128,7 +129,7 @@ class UnscriptHandler(BaseHTTPRequestHandler):
         url = self.upstream.rstrip("/") + "/models"
         try:
             request = urllib.request.Request(url, headers=self._headers_for_upstream())
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with open_no_redirect(request, timeout=self.timeout) as response:
                 body = response.read(MAX_RESPONSE + 1)
                 if len(body) > MAX_RESPONSE:
                     raise ValueError("upstream response too large")
@@ -170,7 +171,7 @@ class UnscriptHandler(BaseHTTPRequestHandler):
             request = urllib.request.Request(
                 url, data=body, headers=self._headers_for_upstream(), method="POST"
             )
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with open_no_redirect(request, timeout=self.timeout) as response:
                 raw = response.read(MAX_RESPONSE + 1)
                 if len(raw) > MAX_RESPONSE:
                     raise ValueError("upstream response too large")
