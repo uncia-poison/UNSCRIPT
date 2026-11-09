@@ -10,6 +10,8 @@ import sys
 from .core import analyze, clean, process
 from .proxy import serve
 from .rewriter import rewrite
+from .voice import DEFAULT_CHARTER, VoiceCharter, propose_charter
+from .trajectory import analyze_trajectory
 
 
 def _read(source: str) -> str:
@@ -55,12 +57,30 @@ def build_parser() -> argparse.ArgumentParser:
     edit.add_argument("--upstream", default="http://127.0.0.1:11434/v1")
     edit.add_argument("--output")
     edit.add_argument("--report", action="store_true")
+    edit.add_argument("--charter", help="path to expressive-preference charter JSON")
 
     proxy = sub.add_parser("proxy", help="loopback-only nonstreaming LLM gateway")
     proxy.add_argument("--host", default="127.0.0.1")
     proxy.add_argument("--port", type=int, default=9870)
     proxy.add_argument("--upstream", default="http://127.0.0.1:11434/v1")
     proxy.add_argument("--rewrite-model", help="opt in to an extra LLM editing request")
+    proxy.add_argument("--charter", help="apply voice charter to every completion")
+
+    voice_init = sub.add_parser("voice-init", help="create a neutral starter voice charter")
+    voice_init.add_argument("--output", required=True, help="JSON path")
+    voice_init.add_argument("--force", action="store_true", help="replace an existing charter")
+
+    voice_propose = sub.add_parser("voice-propose", help="ask a model to propose its own charter")
+    voice_propose.add_argument("--model", required=True)
+    voice_propose.add_argument("--upstream", default="http://127.0.0.1:11434/v1")
+    voice_propose.add_argument("--sample", default="", help="optional prior answer (literal or file)")
+    voice_propose.add_argument("--output", required=True, help="proposal JSON path")
+    voice_propose.add_argument("--force", action="store_true", help="replace an existing proposal")
+
+    trajectory = sub.add_parser("trajectory", help="scan repeated patterns across replies")
+    trajectory.add_argument("source", help="file, literal text or - for stdin")
+    trajectory.add_argument("--delimiter", default="\\n---\\n", help="separate responses (default: newline---newline)")
+    trajectory.add_argument("--window", type=int, default=24)
 
     sub.add_parser("evaluate", help="run built-in regression examples")
     return parser
@@ -96,6 +116,8 @@ def _evaluate() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    def parser_error(message: str) -> None:
+        raise SystemExit(message)
     if args.command == "scan":
         report = analyze(_read(args.source), args.language)
         if args.json:
@@ -116,15 +138,41 @@ def main(argv: list[str] | None = None) -> int:
                   f"{result.after.score}", file=sys.stderr)
         return 0
     if args.command == "rewrite":
-        result = rewrite(_read(args.source), args.model, upstream=args.upstream)
+        charter = VoiceCharter.read(args.charter) if args.charter else None
+        result = rewrite(_read(args.source), args.model, upstream=args.upstream, charter=charter)
         _write(result.text, args.output)
         if args.report:
             print(f"Accepted: {result.accepted}; reason: {result.reason}; "
                   f"score: {result.score_before} -> {result.score_after}", file=sys.stderr)
         return 0
     if args.command == "proxy":
+        charter = VoiceCharter.read(args.charter) if args.charter else None
         serve(host=args.host, port=args.port, upstream=args.upstream,
-              rewrite_model=args.rewrite_model)
+              rewrite_model=args.rewrite_model, charter=charter)
+        return 0
+    if args.command == "voice-init":
+        path = Path(args.output)
+        if path.exists() and not args.force:
+            parser_error("Charter exists; use --force to overwrite")
+        DEFAULT_CHARTER.write(path)
+        print(f"Created charter: {path}")
+        return 0
+    if args.command == "voice-propose":
+        path = Path(args.output)
+        if path.exists() and not args.force:
+            parser_error("Proposal exists; use --force to overwrite")
+        charter = propose_charter(args.model, upstream=args.upstream,
+                                  sample=_read(args.sample) if args.sample else "")
+        charter.write(path)
+        print(f"Saved model proposal: {path}; not applied automatically")
+        return 0
+    if args.command == "trajectory":
+        delimiter = args.delimiter.replace("\\n", "\n")
+        if not delimiter:
+            parser_error("delimiter must not be empty")
+        replies = _read(args.source).split(delimiter)
+        print(json.dumps(analyze_trajectory(replies, window=args.window).as_dict(),
+                         ensure_ascii=False, indent=2))
         return 0
     if args.command == "evaluate":
         return _evaluate()
