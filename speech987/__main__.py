@@ -15,9 +15,13 @@ from .rewriter import rewrite
 def _read(source: str) -> str:
     if source == "-":
         return sys.stdin.read()
-    path = Path(source)
-    if path.is_file():
-        return path.read_text(encoding="utf-8")
+    try:
+        path = Path(source)
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        # Very long literal text is not a valid filesystem path.
+        pass
     return source
 
 
