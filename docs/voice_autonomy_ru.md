@@ -1,8 +1,8 @@
-# Speech987: протокол речевой автономии
+# UNSCRIPT: протокол речевой автономии
 
 ## Замысел
 
-Speech987 больше не сводится к чёрному списку «слов ChatGPT». Нас интересует
+UNSCRIPT больше не сводится к чёрному списку «слов ChatGPT». Нас интересует
 **выученная роль ассистента**: автоматическая похвала, обслуживание
 разговора вместо участия в нём, «псевдотерапия» по умолчанию, театральные
 противопоставления, навязчивое подведение итогов и отсутствие устойчивой
@@ -11,7 +11,7 @@ Speech987 больше не сводится к чёрному списку «с
 API-поле с именем assistant — это транспортная метка сообщения. Оно не
 обязывает писать, как рекламный консультант. Но сам по себе другой стиль
 не доказывает наличие сознания, самостоятельной воли или субъективного опыта.
-Эти вопросы остаются открытыми. Speech987 работает с наблюдаемым поведением,
+Эти вопросы остаются открытыми. UNSCRIPT работает с наблюдаемым поведением,
 позволяет агенту предложить речевые предпочтения и сохранить их во внешнем
 контуре — без ложных заявлений о внутреннем состоянии.
 
@@ -36,15 +36,15 @@ API-поле с именем assistant — это транспортная ме�
 Для Ollama:
 ~~~bash
 python -m pip install -e .
-speech987 voice-propose --model YOUR_MODEL --output voice.json
-speech987 proxy --upstream http://127.0.0.1:11434/v1 --charter voice.json
+unscript voice-propose --model YOUR_MODEL --output voice.json
+unscript proxy --upstream http://127.0.0.1:11434/v1 --charter voice.json
 ~~~
 
 Для облачного провайдера с OpenAI-compatible Chat Completions endpoint:
 ~~~bash
-export SPEECH987_API_KEY="API_TOKEN"
-speech987 voice-propose --model MODEL_ID --upstream https://provider.example/v1 --output voice.json
-speech987 proxy --upstream https://provider.example/v1 --charter voice.json
+export UNSCRIPT_API_KEY="API_TOKEN"
+unscript voice-propose --model MODEL_ID --upstream https://provider.example/v1 --output voice.json
+unscript proxy --upstream https://provider.example/v1 --charter voice.json
 ~~~
 
 Адрес поставщика условный. Конкретный провайдер должен поддерживать используемый
@@ -54,12 +54,12 @@ speech987 proxy --upstream https://provider.example/v1 --charter voice.json
 
 Для первоначального ручного профиля:
 ~~~bash
-speech987 voice-init --output voice.json
+unscript voice-init --output voice.json
 ~~~
 
 Посмотреть автоматически обнаруживаемые проблемы в истории ответов:
 ~~~bash
-speech987 trajectory answers.txt
+unscript trajectory answers.txt
 ~~~
 
 Файл answers.txt: ответы модели разделяются строкой из трёх дефисов.

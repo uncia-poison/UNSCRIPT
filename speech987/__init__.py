@@ -1,9 +1,6 @@
-"""Speech987: explainable LLM speech-quality audit and conservative cleanup."""
+"""Compatibility facade for the former speech987 package.
 
-from .core import Finding, Report, analyze, clean, process, protected_spans
-from .rules import RULES, Rule
-from .voice import VoiceCharter, DEFAULT_CHARTER, charter_instruction, propose_charter
-from .trajectory import VoiceTrajectory, analyze_trajectory
-
-__all__ = ["Finding", "Report", "Rule", "RULES", "analyze", "clean", "process", "protected_spans", "VoiceCharter", "DEFAULT_CHARTER", "charter_instruction", "propose_charter", "VoiceTrajectory", "analyze_trajectory"]
-__version__ = "0.2.0"
+New code should import unscript. Existing speech987 imports remain supported.
+"""
+from unscript import *  # noqa: F401,F403
+from unscript import __version__ as __version__

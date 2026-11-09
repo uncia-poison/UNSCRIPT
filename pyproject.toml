@@ -3,8 +3,8 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "speech987"
-version = "0.2.0"
+name = "unscript"
+version = "0.3.0"
 description = "Bilingual model voice autonomy, anti-cliché auditing and conservative middleware"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,7 +12,8 @@ authors = [{name = "uncia-poison"}]
 dependencies = []
 
 [project.scripts]
+unscript = "unscript.__main__:main"
 speech987 = "speech987.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["speech987*"]
+include = ["unscript*", "speech987*"]

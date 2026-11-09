@@ -1,4 +1,4 @@
-name: Speech987 tests
+name: UNSCRIPT tests
 
 on:
   push:
@@ -22,4 +22,6 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s tests -v
       - name: Self-evaluation
+        run: python -m unscript evaluate
+      - name: Legacy command smoke test
         run: python -m speech987 evaluate
