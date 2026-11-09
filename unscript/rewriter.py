@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import Counter
 import json
+import ipaddress
 import os
 import re
 import urllib.error
@@ -12,6 +14,7 @@ from urllib.parse import urlparse
 
 from .core import analyze, clean, protected_spans
 from .voice import VoiceCharter, charter_instruction
+from .transport import open_no_redirect
 
 
 EDITOR_INSTRUCTION = """You are UNSCRIPT's minimal-diff style editor.
@@ -43,6 +46,13 @@ def _completion_url(upstream: str) -> str:
         raise ValueError("upstream must be an absolute http(s) URL ending in /v1")
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError("do not embed credentials or query parameters in upstream")
+    hostname = parsed.hostname or ""
+    try:
+        local = ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        local = hostname.rstrip(".").lower() == "localhost"
+    if not local and parsed.scheme != "https":
+        raise ValueError("non-loopback upstream must use HTTPS to protect API keys and text")
     return upstream.rstrip("/") + "/chat/completions"
 
 
@@ -55,6 +65,38 @@ def _anchors(text: str) -> tuple[list[str], list[str], list[str]]:
     return numbers, urls, anchors
 
 
+# Conservatively preserve tokens that encode polarity, modality, time,
+# quantity and confidence. Rewriting these changes semantics even if numbers
+# and quoted snippets stay unchanged. This is a lexical safeguard, NOT a
+# semantic-equivalence proof; it may reject some good stylistic edits.
+_MEANING_MARKERS = re.compile(
+    r"(?iu)\b(?:"
+    r"не|нет|ни|без|нельзя|невозможно|никогда|всегда|только|"
+    r"обязательно|запрещено|разрешено|до|после|раньше|позже|"
+    r"больше|меньше|выше|ниже|возможно|вероятно|примерно|"
+    r"not|no|never|always|only|must|should|may|might|cannot|"
+    r"can(?:'|’)t|won(?:'|’)t|before|after|more|less|"
+    r"greater|smaller|above|below|perhaps|possibly|probably"
+    r")\b"
+)
+
+
+def _critical_markers(text: str) -> tuple[Counter[str], Counter[str]]:
+    # Exclude quoted spans from the token inventory; exact anchors are
+    # already checked separately and must survive unchanged.
+    spans = protected_spans(text)
+    pieces: list[str] = []
+    end = 0
+    for start, finish in spans:
+        pieces.append(text[end:start])
+        end = finish
+    pieces.append(text[end:])
+    visible = "".join(pieces)
+    words = Counter(m.group().lower() for m in _MEANING_MARKERS.finditer(visible))
+    acronyms = Counter(re.findall(r"(?<!\w)[A-ZА-ЯЁ]{2,}(?!\w)", visible))
+    return words, acronyms
+
+
 def _acceptable(original: str, candidate: str) -> bool:
     if not candidate.strip():
         return False
@@ -63,6 +105,8 @@ def _acceptable(original: str, candidate: str) -> bool:
     if len(candidate) > max(30, len(original) * 1.5):
         return False
     if _anchors(original) != _anchors(candidate):
+        return False
+    if _critical_markers(original) != _critical_markers(candidate):
         return False
     return True
 
@@ -112,7 +156,7 @@ def rewrite(
         _completion_url(upstream), data=request_body, headers=headers, method="POST"
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with open_no_redirect(request, timeout=timeout) as response:
             raw = response.read(8 * 1024 * 1024 + 1)
             if len(raw) > 8 * 1024 * 1024:
                 raise ValueError("upstream response is too large")

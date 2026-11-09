@@ -8,7 +8,7 @@ It offers:
 - **Optional second-pass rewriting:** run a local/OpenAI-compatible model as an editor, and accept its output only if objective guards and style-score checks pass. This is opt-in, because semantic equivalence is impossible to guarantee automatically.
 - **Local HTTP middleware:** proxy non-streaming OpenAI Chat Completions requests to Ollama or another compatible backend and clean assistant responses.
 - **ChatGPT instructions:** a copyable behavior guide for ChatGPT; no claim of injecting software into the official app.
-- **Regression tests and benchmark:** reproducible checks against false positives and regressions.
+- **Regression tests and smoke checks:** reproducible checks against false positives, regressions and unsafe edits. A real-world benchmark with human evaluation remains future work.
 
 ## Installation
 
@@ -58,7 +58,7 @@ print(answer.choices[0].message.content)
 
 The proxy adds a **system-level writing guide** and applies the conservative filter to each string-valued assistant reply. It preserves usage, tool calls and the remaining JSON shape. It **rejects streaming** (HTTP 400) instead of pretending to support it. Tool-call arguments, code and user messages are not rewritten.
 
-Security: by design the proxy can bind only to loopback (127.0.0.1 or ::1). Never expose an unauthenticated LLM proxy to the internet. Upstream is explicitly configured, not chosen by an inbound request. Requests are limited to 1 MiB and upstream response bodies to 8 MiB.
+Security: the proxy binds only to loopback (127.0.0.1 or ::1). An external/cloud upstream must use HTTPS, and **requires a local client key** in `UNSCRIPT_CLIENT_KEY`. The cloud service's token belongs in `UNSCRIPT_API_KEY`; never give that provider token to applications using the local proxy. Redirects are rejected to avoid leaking credentials or text. Requests are limited to 1 MiB and upstream response bodies to 8 MiB. See [SECURITY.md](SECURITY.md).
 
 ## Optional local rewrite pass
 
@@ -119,9 +119,19 @@ openings and structures across answers separated by a line containing `---`.
 Only bounded hashed fingerprints are retained by the in-memory analyzer,
 not original transcripts. No remote telemetry is used.
 
-For an OpenAI-compatible cloud model, configure the provider endpoint in
-`--upstream` and an API key using `SPEECH987_API_KEY`.
-**Avoid committing keys**, and be aware of usage fees.
+For an OpenAI-compatible cloud model, configure an HTTPS endpoint, a provider token
+in `UNSCRIPT_API_KEY`, and a **different** locally enforced key
+in `UNSCRIPT_CLIENT_KEY`. Clients accessing the UNSCRIPT proxy must pass
+the client key, not the provider token:
+
+~~~sh
+export UNSCRIPT_API_KEY="YOUR_CLOUD_PROVIDER_TOKEN"
+export UNSCRIPT_CLIENT_KEY="A_DIFFERENT_LONG_RANDOM_SECRET"
+unscript proxy --upstream https://provider.example/v1 --charter voice.json
+~~~
+
+The provider endpoint shown above is illustrative, not a real service.
+**Avoid committing keys**, and be aware of API usage fees.
 
 Read **[the full Russian protocol](docs/voice_autonomy_ru.md)** for scope,
 limitations and a portable ChatGPT prompt.
@@ -131,23 +141,25 @@ model-generated preference document applied through an operator-controlled
 runtime; it cannot change model weights, override platform constraints or
 install code inside the official ChatGPT app.
 
-## Migration from speech_987
+## Compatibility after the GitHub rename
 
-**UNSCRIPT** is the new project name, Python distribution, import package and primary CLI.
-The old `speech987` import paths and CLI entry point remain as compatibility
-aliases; update new code to use `unscript`.
+UNSCRIPT is the canonical Python distribution, import package and CLI.
+The repository URL is **https://github.com/uncia-poison/UNSCRIPT**.
+The former `speech987` import paths and CLI entry point remain usable as
+legacy compatibility aliases. Use `UNSCRIPT_API_KEY` for cloud credentials;
+`SPEECH987_API_KEY` is supported as a migration fallback.
 
-Use `UNSCRIPT_API_KEY` for cloud requests (the legacy
-`SPEECH987_API_KEY` variable is accepted as a fallback during migration).
-
-The GitHub repository is to be renamed in **Settings → General → Repository name**.
-Repository URL after rename: https://github.com/uncia-poison/UNSCRIPT .
-GitHub's repository rename keeps the commit ancestry and redirects many old URLs.
-Local clones should update `origin`:
+Existing clones may update their remote URL:
 
 ~~~sh
 git remote set-url origin https://github.com/uncia-poison/UNSCRIPT.git
 ~~~
 
-The GitHub repository rename itself cannot be performed by the current GitHub
-connector, so this code migration may temporarily precede the repository name change.
+## Licensing status
+
+This public repository currently has **no explicit open-source license**.
+Public visibility means the source is readable; it does not automatically
+grant permission to redistribute, modify or reuse the source. Before inviting
+external contributors or reuse, the maintainer should choose a license,
+such as MIT or Apache-2.0, and add a LICENSE file. The project does not
+silently select legal permissions on the maintainer's behalf.

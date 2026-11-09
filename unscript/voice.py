@@ -14,6 +14,8 @@ from pathlib import Path
 import re
 from typing import Any
 
+from .transport import open_no_redirect
+
 
 MAX_FIELD = 180
 MAX_ITEMS = 8
@@ -26,7 +28,7 @@ def _short(value: Any, label: str, limit: int = MAX_FIELD) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{label} must be a string")
     value = value.strip()
-    if len(value) > limit or any(c in value for c in "\0\r"):
+    if len(value) > limit or any(ord(c) < 32 or ord(c) == 127 for c in value):
         raise ValueError(f"{label} exceeds permitted length or contains controls")
     return value
 
@@ -56,13 +58,13 @@ class VoiceCharter:
     revision: int = 1
 
     def __post_init__(self) -> None:
-        if self.version != 1:
+        if type(self.version) is not int or self.version != 1:
             raise ValueError("Unsupported charter schema version")
         if self.language not in LANGUAGES:
             raise ValueError("Unsupported language")
         if self.origin not in ORIGINS:
             raise ValueError("Unsupported origin")
-        if not isinstance(self.revision, int) or not 1 <= self.revision <= 1_000_000:
+        if type(self.revision) is not int or not 1 <= self.revision <= 1_000_000:
             raise ValueError("revision out of bounds")
         for key in ("handle", "cadence", "disagreement", "uncertainty"):
             _short(getattr(self, key), key)
@@ -212,7 +214,7 @@ def propose_charter(
     request = urllib.request.Request(
         _completion_url(upstream), data=body, headers=headers, method="POST"
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with open_no_redirect(request, timeout=timeout) as response:
         raw = response.read(MAX_FILE_SIZE * 4 + 1)
         if len(raw) > MAX_FILE_SIZE * 4:
             raise ValueError("Charter proposal response too large")

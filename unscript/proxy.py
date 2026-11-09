@@ -10,6 +10,7 @@ from copy import deepcopy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+import secrets
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -17,6 +18,7 @@ from urllib.parse import urlparse
 from .core import clean
 from .rewriter import _completion_url, rewrite
 from .voice import VoiceCharter, charter_instruction
+from .transport import open_no_redirect
 
 
 MAX_REQUEST = 1024 * 1024
@@ -84,6 +86,7 @@ class UnscriptHandler(BaseHTTPRequestHandler):
     upstream_key: str = ""
     rewrite_model: str | None = None
     voice_charter: VoiceCharter | None = None
+    client_key: str = ""
     timeout: float = 90.0
 
     def _respond(self, code: int, data: dict | bytes, content_type: str = "application/json") -> None:
@@ -104,6 +107,16 @@ class UnscriptHandler(BaseHTTPRequestHandler):
             headers["Authorization"] = "Bearer " + self.upstream_key
         return headers
 
+    def _authorized(self) -> bool:
+        if not self.client_key:
+            return True
+        expected = "Bearer " + self.client_key
+        provided = self.headers.get("Authorization", "")
+        if secrets.compare_digest(provided, expected):
+            return True
+        self._respond(401, {"error": {"message": "invalid or missing client API key"}})
+        return False
+
     def do_GET(self) -> None:
         if self.path == "/health":
             self._respond(200, {"status": "ok", "name": "unscript"})
@@ -111,10 +124,12 @@ class UnscriptHandler(BaseHTTPRequestHandler):
         if self.path != "/v1/models":
             self._respond(404, {"error": {"message": "not found"}})
             return
+        if not self._authorized():
+            return
         url = self.upstream.rstrip("/") + "/models"
         try:
             request = urllib.request.Request(url, headers=self._headers_for_upstream())
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with open_no_redirect(request, timeout=self.timeout) as response:
                 body = response.read(MAX_RESPONSE + 1)
                 if len(body) > MAX_RESPONSE:
                     raise ValueError("upstream response too large")
@@ -125,6 +140,8 @@ class UnscriptHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path != "/v1/chat/completions":
             self._respond(404, {"error": {"message": "only /v1/chat/completions is supported"}})
+            return
+        if not self._authorized():
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -154,7 +171,7 @@ class UnscriptHandler(BaseHTTPRequestHandler):
             request = urllib.request.Request(
                 url, data=body, headers=self._headers_for_upstream(), method="POST"
             )
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with open_no_redirect(request, timeout=self.timeout) as response:
                 raw = response.read(MAX_RESPONSE + 1)
                 if len(raw) > MAX_RESPONSE:
                     raise ValueError("upstream response too large")
@@ -180,10 +197,22 @@ def serve(
     rewrite_model: str | None = None,
     api_key: str | None = None,
     charter: VoiceCharter | None = None,
+    client_key: str | None = None,
 ) -> None:
     if host not in LOOPBACK:
         raise ValueError("UNSCRIPT proxy is loopback-only. Use 127.0.0.1, ::1 or localhost.")
     _completion_url(upstream)  # Fail before starting the server.
+    # Protect paid cloud upstreams even from other programs running locally.
+    # Never pass the upstream service key to client processes or browsers.
+    upstream_host = (urlparse(upstream).hostname or "").rstrip(".").lower()
+    remote = upstream_host not in {"localhost", "127.0.0.1", "::1"}
+    local_client_key = (
+        client_key if client_key is not None else os.environ.get("UNSCRIPT_CLIENT_KEY", "")
+    )
+    if remote and not local_client_key:
+        raise ValueError(
+            "Remote upstream requires UNSCRIPT_CLIENT_KEY for local proxy authentication"
+        )
     if not (0 < port < 65536):
         raise ValueError("invalid port")
 
@@ -194,6 +223,7 @@ def serve(
     ConfiguredHandler.upstream_key = api_key if api_key is not None else (os.environ.get("UNSCRIPT_API_KEY") or os.environ.get("SPEECH987_API_KEY", ""))
     ConfiguredHandler.rewrite_model = rewrite_model
     ConfiguredHandler.voice_charter = charter
+    ConfiguredHandler.client_key = local_client_key
     with ThreadingHTTPServer((host, port), ConfiguredHandler) as server:
         print("UNSCRIPT listening at http://" + host + ":" + str(port) + "/v1", flush=True)
         server.serve_forever()
