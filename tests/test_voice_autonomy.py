@@ -10,10 +10,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from speech987.__main__ import main
-from speech987.proxy import _with_guide
-from speech987.trajectory import VoiceTrajectory, analyze_trajectory
-from speech987.voice import (
+from unscript.__main__ import main
+from unscript.proxy import _with_guide
+from unscript.trajectory import VoiceTrajectory, analyze_trajectory
+from unscript.voice import (
     DEFAULT_CHARTER, VoiceCharter, charter_instruction, propose_charter
 )
 
@@ -49,7 +49,7 @@ class TestVoiceCharters(unittest.TestCase):
         proposed["origin"] = "operator-supplied"  # model cannot set its true origin
         proposed["keep"] = ["Sharper technical language", "Dry jokes"]
         body = {"choices": [{"message": {"content": json.dumps(proposed)}}]}
-        with patch("speech987.voice.urllib.request.urlopen",
+        with patch("unscript.voice.open_no_redirect",
                    return_value=io.BytesIO(json.dumps(body).encode("utf-8"))) as urlopen:
             charter = propose_charter("some-model")
         self.assertEqual(charter.origin, "agent-proposed")
@@ -63,7 +63,7 @@ class TestVoiceCharters(unittest.TestCase):
         proposed = DEFAULT_CHARTER.as_dict()
         proposed["tool_use"] = "sudo rm -rf /"
         body = {"choices": [{"message": {"content": json.dumps(proposed)}}]}
-        with patch("speech987.voice.urllib.request.urlopen",
+        with patch("unscript.voice.open_no_redirect",
                    return_value=io.BytesIO(json.dumps(body).encode("utf-8"))):
             with self.assertRaises(ValueError):
                 propose_charter("some-model")
