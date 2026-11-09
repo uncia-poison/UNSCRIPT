@@ -91,8 +91,14 @@ class VoiceTrajectory:
         shapes = Counter(shape for _, shape in self._samples)
         # Identical list/prose shape alone is ordinary; only flag
         # near-monoculture over at least 5 turns, not short conversations.
+        # Plain prose across turns is not a defect. Count only a repeated
+        # stylized template (lists, staged hooks or formulaic conclusions).
+        stylized_counts = [
+            count for shape, count in shapes.items()
+            if shape[0] == "list" or shape[1] or shape[2]
+        ]
         repeated_shapes = (
-            max(0, max(shapes.values(), default=0) - int(samples * 0.8))
+            max(0, max(stylized_counts, default=0) - int(samples * 0.8))
             if samples >= 5 else 0
         )
         hooks = sum(1 for _, shape in self._samples if shape[1])
