@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "speech987"
+version = "0.1.0"
+description = "Bilingual LLM speech-cliché auditing and conservative cleanup middleware"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "uncia-poison"}]
+dependencies = []
+
+[project.scripts]
+speech987 = "speech987.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["speech987*"]
