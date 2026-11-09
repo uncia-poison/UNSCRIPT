@@ -10,6 +10,10 @@ It offers:
 - **ChatGPT instructions:** a copyable behavior guide for ChatGPT; no claim of injecting software into the official app.
 - **Regression tests and smoke checks:** reproducible checks against false positives, regressions and unsafe edits. A real-world benchmark with human evaluation remains future work.
 
+Version **0.3.1**. See [CHANGELOG.md](CHANGELOG.md) for the security changes
+and [ROADMAP.md](ROADMAP.md) for the next experimental milestones. Public
+source availability is not equivalent to an open-source license.
+
 ## Installation
 
 Requires Python 3.10+. No third-party Python packages for the default CLI, scanner or proxy.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "unscript"
-version = "0.3.0"
+version = "0.3.1"
 description = "Bilingual model voice autonomy, anti-cliché auditing and conservative middleware"
 readme = "README.md"
 requires-python = ">=3.10"
