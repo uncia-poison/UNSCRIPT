@@ -64,7 +64,7 @@ class ProcessResult:
 
 
 COMPILED: tuple[tuple[Rule, re.Pattern[str]], ...] = tuple(
-    (rule, re.compile(rule.pattern)) for rule in RULES
+    (rule, re.compile(rule.pattern, flags=re.IGNORECASE | re.UNICODE)) for rule in RULES
 )
 
 
