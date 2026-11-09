@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 
 from .core import clean
 from .rewriter import _completion_url, rewrite
+from .voice import VoiceCharter, charter_instruction
 
 
 MAX_REQUEST = 1024 * 1024
@@ -42,6 +43,7 @@ def rewrite_completion(
     model: str | None = None,
     upstream: str = "http://127.0.0.1:11434/v1",
     api_key: str | None = None,
+    charter: VoiceCharter | None = None,
 ) -> dict:
     """Non-mutating transform of assistant text; preserve tools and metadata."""
     result = deepcopy(payload)
@@ -56,19 +58,22 @@ def rewrite_completion(
             continue
         if model:
             message["content"] = rewrite(
-                content, model=model, upstream=upstream, api_key=api_key
+                content, model=model, upstream=upstream, api_key=api_key,
+                charter=charter
             ).text
         else:
             message["content"] = clean(content)
     return result
 
 
-def _with_guide(payload: dict) -> dict:
+def _with_guide(payload: dict, charter: VoiceCharter | None = None) -> dict:
     output = deepcopy(payload)
     messages = output.get("messages")
     if isinstance(messages, list):
         output["messages"] = [
-            {"role": "system", "content": STYLE_GUIDE},
+            {"role": "system", "content": (
+                STYLE_GUIDE + ("\n\n" + charter_instruction(charter) if charter else "")
+            )},
             *messages,
         ]
     return output
@@ -78,6 +83,7 @@ class SpeechHandler(BaseHTTPRequestHandler):
     upstream: str = "http://127.0.0.1:11434/v1"
     upstream_key: str = ""
     rewrite_model: str | None = None
+    voice_charter: VoiceCharter | None = None
     timeout: float = 90.0
 
     def _respond(self, code: int, data: dict | bytes, content_type: str = "application/json") -> None:
@@ -142,7 +148,7 @@ class SpeechHandler(BaseHTTPRequestHandler):
         if not isinstance(request_payload.get("messages"), list):
             self._respond(400, {"error": {"message": "messages list required"}})
             return
-        body = json.dumps(_with_guide(request_payload), ensure_ascii=False).encode("utf-8")
+        body = json.dumps(_with_guide(request_payload, self.voice_charter), ensure_ascii=False).encode("utf-8")
         try:
             url = _completion_url(self.upstream)
             request = urllib.request.Request(
@@ -157,7 +163,7 @@ class SpeechHandler(BaseHTTPRequestHandler):
                     raise ValueError("unexpected upstream JSON shape")
                 cleaned = rewrite_completion(
                     reply, model=self.rewrite_model, upstream=self.upstream,
-                    api_key=self.upstream_key
+                    api_key=self.upstream_key, charter=self.voice_charter
                 )
                 self._respond(response.status, cleaned)
         except urllib.error.HTTPError as exc:
@@ -173,6 +179,7 @@ def serve(
     upstream: str = "http://127.0.0.1:11434/v1",
     rewrite_model: str | None = None,
     api_key: str | None = None,
+    charter: VoiceCharter | None = None,
 ) -> None:
     if host not in LOOPBACK:
         raise ValueError("Speech987 proxy is loopback-only. Use 127.0.0.1, ::1 or localhost.")
@@ -186,6 +193,7 @@ def serve(
     ConfiguredHandler.upstream = upstream
     ConfiguredHandler.upstream_key = api_key if api_key is not None else os.environ.get("SPEECH987_API_KEY", "")
     ConfiguredHandler.rewrite_model = rewrite_model
+    ConfiguredHandler.voice_charter = charter
     with ThreadingHTTPServer((host, port), ConfiguredHandler) as server:
         print("Speech987 listening at http://" + host + ":" + str(port) + "/v1", flush=True)
         server.serve_forever()

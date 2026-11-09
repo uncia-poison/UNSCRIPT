@@ -11,6 +11,7 @@ import urllib.request
 from urllib.parse import urlparse
 
 from .core import analyze, clean, protected_spans
+from .voice import VoiceCharter, charter_instruction
 
 
 EDITOR_INSTRUCTION = """You are Speech987's minimal-diff style editor.
@@ -72,6 +73,7 @@ def rewrite(
     upstream: str = "http://127.0.0.1:11434/v1",
     api_key: str | None = None,
     timeout: float = 60.0,
+    charter: VoiceCharter | None = None,
 ) -> RewriteResult:
     """Use an explicitly chosen model, accepting only measurable improvements.
 
@@ -93,7 +95,9 @@ def rewrite(
     request_body = json.dumps({
         "model": model,
         "messages": [
-            {"role": "system", "content": EDITOR_INSTRUCTION},
+            {"role": "system", "content": (
+                EDITOR_INSTRUCTION + ("\n\n" + charter_instruction(charter) if charter else "")
+            )},
             {"role": "user", "content": baseline},
         ],
         "stream": False,

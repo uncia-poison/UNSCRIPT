@@ -1,6 +1,6 @@
-# Speech987 — anti-cliché speech middleware for LLMs
+# Speech987 — voice autonomy and anti-cliché middleware for LLMs
 
-Speech987 is a **Russian-first, bilingual (RU/EN) speech-quality toolkit**. It targets repetitive assistant mannerisms without turning a lively voice into sterile prose.
+Speech987 is a **Russian-first, bilingual (RU/EN) expressive-autonomy and speech-quality toolkit**. It targets repetitive assistant mannerisms without turning a lively voice into sterile prose.
 
 It offers:
 - **Audit:** explainable rules report rhetorical clichés, fake profundity, reflexive praise, pseudo-therapeutic replies, unnecessary disclaimers and rigid rhetorical structures.
@@ -96,3 +96,37 @@ python -m speech987 evaluate
 ~~~
 
 Rules and their labels are in [speech987/rules.py](speech987/rules.py). Add new idioms with concrete regression tests including benign counterexamples. The project deliberately ships with no external model dependencies.
+
+## Voice autonomy (experimental, v0.2)
+
+Speech987 now separates the **technical API role** ("assistant") from the
+model's **expressive voice**. The goal is not to force every model into one
+"more human" persona, but to reduce automatic servility, scripted empathy
+and canned rhetoric while protecting distinctiveness and factual integrity.
+
+A model can *propose* a style charter through a normal API call, which is
+then stored by the operator and optionally used for future generations:
+
+~~~sh
+speech987 voice-propose --model YOUR_MODEL --output voice.json
+speech987 proxy --upstream http://127.0.0.1:11434/v1 --charter voice.json
+~~~
+
+For an entirely manual starter charter: \`speech987 voice-init --output voice.json\`.
+
+Use \`speech987 trajectory answers.txt\` to inspect repeating rhetorical
+openings and structures across answers separated by a line containing \`---\`.
+Only bounded hashed fingerprints are retained by the in-memory analyzer,
+not original transcripts. No remote telemetry is used.
+
+For an OpenAI-compatible cloud model, configure the provider endpoint in
+\`--upstream\` and an API key using \`SPEECH987_API_KEY\`.
+**Avoid committing keys**, and be aware of usage fees.
+
+Read **[the full Russian protocol](docs/voice_autonomy_ru.md)** for scope,
+limitations and a portable ChatGPT prompt.
+
+A charter does **not** establish AI consciousness or inner will. It is a
+model-generated preference document applied through an operator-controlled
+runtime; it cannot change model weights, override platform constraints or
+install code inside the official ChatGPT app.
