@@ -13,7 +13,7 @@ import speech987
 
 class TestBrandMigration(unittest.TestCase):
     def test_canonical_version_and_api(self):
-        self.assertEqual(unscript.__version__, "0.3.0")
+        self.assertEqual(unscript.__version__, "0.3.1")
         self.assertIs(unscript.analyze, speech987.analyze)
         self.assertIs(unscript.VoiceCharter, speech987.VoiceCharter)
         self.assertEqual(unscript.clean("Скажу честно: проблема в коде."),
