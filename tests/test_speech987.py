@@ -5,10 +5,10 @@ import json
 import unittest
 from unittest.mock import patch
 
-from speech987 import RULES, analyze, clean, process, protected_spans
-from speech987.__main__ import _evaluate
-from speech987.proxy import _with_guide, rewrite_completion, serve
-from speech987.rewriter import _acceptable, _completion_url, rewrite
+from unscript import RULES, analyze, clean, process, protected_spans
+from unscript.__main__ import _evaluate
+from unscript.proxy import _with_guide, rewrite_completion, serve
+from unscript.rewriter import _acceptable, _completion_url, rewrite
 
 
 class TestDetection(unittest.TestCase):
@@ -125,6 +125,32 @@ class TestRewrite(unittest.TestCase):
         b = "Архив открыт, адрес неизвестен."
         self.assertFalse(_acceptable(a, b))
 
+    def test_keep_polarity_and_modality(self):
+        from unscript.rewriter import _acceptable
+        self.assertFalse(_acceptable(
+            "Сервер не принимает запросы через API.",
+            "Сервер принимает запросы через API."
+        ))
+        self.assertFalse(_acceptable(
+            "Соединение возможно после повторного запуска.",
+            "Соединение возможно до повторного запуска."
+        ))
+        self.assertFalse(_acceptable(
+            "The system should not delete this file.",
+            "The system should delete this file."
+        ))
+        self.assertFalse(_acceptable(
+            "The server probably responds slowly in this region.",
+            "The server responds slowly in this region."
+        ))
+
+    def test_preserve_technical_acronyms(self):
+        from unscript.rewriter import _acceptable
+        self.assertFalse(_acceptable(
+            "API reported a failed response when the gateway restarted.",
+            "HTTP reported a failed response when the gateway restarted."
+        ))
+
     def test_invalid_upstream(self):
         with self.assertRaises(ValueError):
             _completion_url("file:///etc/passwd")
@@ -140,7 +166,7 @@ class TestRewrite(unittest.TestCase):
         )
         payload = {"choices": [{"message": {"content": candidate}}]}
         fake = io.BytesIO(json.dumps(payload).encode("utf-8"))
-        with patch("speech987.rewriter.urllib.request.urlopen", return_value=fake):
+        with patch("unscript.rewriter.open_no_redirect", return_value=fake):
             result = rewrite(source, "local-model")
         self.assertTrue(result.accepted, result.reason)
         self.assertEqual(result.text, candidate)
@@ -151,7 +177,7 @@ class TestRewrite(unittest.TestCase):
         fake = io.BytesIO(json.dumps(
             {"choices": [{"message": {"content": candidate}}]}
         ).encode("utf-8"))
-        with patch("speech987.rewriter.urllib.request.urlopen", return_value=fake):
+        with patch("unscript.rewriter.open_no_redirect", return_value=fake):
             result = rewrite(source, "local-model")
         self.assertFalse(result.accepted)
         self.assertEqual(result.text, source)
