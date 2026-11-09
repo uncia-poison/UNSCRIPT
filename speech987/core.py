@@ -189,27 +189,34 @@ def analyze(text: str, language: str = "auto") -> Report:
 def process(text: str, language: str = "auto") -> ProcessResult:
     """Remove only explicit, context-free preambles; never invent replacements."""
     before = analyze(text, language)
-    removals = [
-        finding for finding in before.findings
-        if finding.safe_remove
-    ]
-    # If rules overlap, retain the longest span. Apply from right to left.
-    chosen: list[Finding] = []
-    for f in sorted(removals, key=lambda f: (f.start, -(f.end - f.start))):
-        if not chosen or f.start >= chosen[-1].end:
-            chosen.append(f)
-
     output = text
-    for f in reversed(chosen):
-        remainder = output[f.end:]
-        # A sentence formerly preceded by a stage direction is a new beginning.
-        if remainder and remainder[0].islower():
-            remainder = remainder[0].upper() + remainder[1:]
-        output = output[:f.start] + remainder
+    total_removals = 0
+    # Re-scan until stable: nested empty preambles must not survive or make
+    # the cleanup non-idempotent. A hard cap prevents accidental infinite loops.
+    for _ in range(32):
+        current = analyze(output, language)
+        removals = [finding for finding in current.findings if finding.safe_remove]
+        chosen: list[Finding] = []
+        for f in sorted(removals, key=lambda f: (f.start, -(f.end - f.start))):
+            if not chosen or f.start >= chosen[-1].end:
+                chosen.append(f)
+        if not chosen:
+            break
+
+        updated = output
+        for f in reversed(chosen):
+            remainder = updated[f.end:]
+            if remainder and remainder[0].islower():
+                remainder = remainder[0].upper() + remainder[1:]
+            updated = updated[:f.start] + remainder
+
+        if updated == output:
+            break
+        total_removals += len(chosen)
+        output = updated
 
     after = analyze(output, language)
-    return ProcessResult(text, output, len(chosen), before, after)
-
+    return ProcessResult(text, output, total_removals, before, after)
 
 def clean(text: str, language: str = "auto") -> str:
     """Return conservatively cleaned text. Idempotent by design."""
