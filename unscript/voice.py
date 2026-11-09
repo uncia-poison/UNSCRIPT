@@ -14,6 +14,8 @@ from pathlib import Path
 import re
 from typing import Any
 
+from .transport import open_no_redirect
+
 
 MAX_FIELD = 180
 MAX_ITEMS = 8
@@ -212,7 +214,7 @@ def propose_charter(
     request = urllib.request.Request(
         _completion_url(upstream), data=body, headers=headers, method="POST"
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with open_no_redirect(request, timeout=timeout) as response:
         raw = response.read(MAX_FILE_SIZE * 4 + 1)
         if len(raw) > MAX_FILE_SIZE * 4:
             raise ValueError("Charter proposal response too large")
