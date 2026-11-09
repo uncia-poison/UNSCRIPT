@@ -191,7 +191,7 @@ def serve(
         pass
 
     ConfiguredHandler.upstream = upstream
-    ConfiguredHandler.upstream_key = api_key if api_key is not None else os.environ.get("UNSCRIPT_API_KEY", "")
+    ConfiguredHandler.upstream_key = api_key if api_key is not None else (os.environ.get("UNSCRIPT_API_KEY") or os.environ.get("SPEECH987_API_KEY", ""))
     ConfiguredHandler.rewrite_model = rewrite_model
     ConfiguredHandler.voice_charter = charter
     with ThreadingHTTPServer((host, port), ConfiguredHandler) as server:
