@@ -206,7 +206,7 @@ def propose_charter(
         ensure_ascii=False,
     ).encode("utf-8")
     headers = {"Content-Type": "application/json"}
-    secret = api_key if api_key is not None else os.environ.get("UNSCRIPT_API_KEY", "")
+    secret = api_key if api_key is not None else (os.environ.get("UNSCRIPT_API_KEY") or os.environ.get("SPEECH987_API_KEY", ""))
     if secret:
         headers["Authorization"] = "Bearer " + secret
     request = urllib.request.Request(
