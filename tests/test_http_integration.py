@@ -7,7 +7,7 @@ import unittest
 import urllib.error
 import urllib.request
 
-from speech987.proxy import SpeechHandler
+from unscript.proxy import SpeechHandler
 
 
 class FakeUpstream(BaseHTTPRequestHandler):
