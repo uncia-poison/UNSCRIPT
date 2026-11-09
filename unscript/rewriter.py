@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 from .core import analyze, clean, protected_spans
 from .voice import VoiceCharter, charter_instruction
+from .transport import open_no_redirect
 
 
 EDITOR_INSTRUCTION = """You are UNSCRIPT's minimal-diff style editor.
@@ -155,7 +156,7 @@ def rewrite(
         _completion_url(upstream), data=request_body, headers=headers, method="POST"
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with open_no_redirect(request, timeout=timeout) as response:
             raw = response.read(8 * 1024 * 1024 + 1)
             if len(raw) > 8 * 1024 * 1024:
                 raise ValueError("upstream response is too large")
