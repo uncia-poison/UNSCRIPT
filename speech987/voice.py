@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 import json
+import urllib.request
 from pathlib import Path
 import re
 from typing import Any
